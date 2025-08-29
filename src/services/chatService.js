@@ -25,7 +25,7 @@ export const startChatSession = async () => {
  * @returns {Promise<string>}
  */
 export const submitBirthDetails = async (sessionId, birthDetails) => {
-  try {
+  try { 
     const response = await fetch(`${API_BASE_URL}/astro/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -1,6 +1,40 @@
 // ../src/services/astrologyPersonas.js
 
-const API_BASE_URL = "http://localhost:8000/api/v1";
+import { API_CONFIG } from "../config/api";
+
+/**
+ * Fetch reviews for a specific persona
+ * @param {string} personaSlug - The slug of the persona
+ * @returns {Promise<Array>}
+ */
+export const fetchPersonaReviews = async (personaSlug) => {
+  try {
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REVIEWS}/${personaSlug}`);
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+    const data = await response.json();
+    
+    // Map API response to our expected format
+    return data.data?.map(review => ({
+      name: review.userName || "Anonymous User",
+      rating: review.rating || 5,
+      comment: review.comment || "Great experience!",
+      title: review.title || "",
+      date: review.createdAt || new Date().toISOString(),
+      isVerified: review.isVerified || false,
+      isFeatured: review.isFeatured || false,
+      helpfulVotes: review.helpfulVotes || 0,
+      sessionDuration: review.sessionDuration || 0,
+      messagesExchanged: review.messagesExchanged || 0,
+      aspects: review.aspects || {}
+    })) || [];
+  } catch (error) {
+    console.error(`Error fetching reviews for ${personaSlug}:`, error);
+    // Return empty array if API fails, fallback reviews will be used
+    return [];
+  }
+};
 
 /**
  * The persona definition for our Astrology Gurus.
@@ -27,29 +61,34 @@ const API_BASE_URL = "http://localhost:8000/api/v1";
  */
 export const fetchPersonas = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/personas`);
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PERSONAS}`);
     if (!response.ok) {
       throw new Error(`API Error: ${response.status}`);
     }
     const apiData = await response.json();
     
-    // Map API response to our expected format
-    const personas = apiData.data.map((apiPersona, index) => ({
-      id: apiPersona.slug || apiPersona._id,
-      name: apiPersona.name,
-      role: apiPersona.role,
-      speakingStyle: getPersonalityDescription(apiPersona.personality),
-      expertise: getExpertiseFromTags(apiPersona.tags),
-      goal: `${apiPersona.category} astrology guidance aur personalized predictions provide karna.`,
-      initialGreeting: apiPersona.initialGreeting,
-      avatar: getAvatarForCategory(apiPersona.category),
-      rating: parseFloat((apiPersona.usage.averageRating || (4.5 + Math.random() * 0.4)).toFixed(1)), // One decimal point
-      consultations: apiPersona.usage.totalSessions || Math.floor(Math.random() * 2000) + 500,
-      experience: `${Math.floor(Math.random() * 20) + 5} years`,
-      specialty: getSpecialtyForCategory(apiPersona.category),
-      description: getDescriptionForCategory(apiPersona.category, apiPersona.name),
-      reviews: generateReviewsForPersona(apiPersona.name, apiPersona.category),
-      image: apiPersona.image || null // Placeholder for future image
+    // Map API response to our expected format and fetch reviews for each persona
+    const personas = await Promise.all(apiData.data.map(async (apiPersona, index) => {
+      // Fetch real reviews for this persona
+      const realReviews = await fetchPersonaReviews(apiPersona.slug);
+      
+      return {
+        id: apiPersona.slug || apiPersona._id,
+        name: apiPersona.name,
+        role: apiPersona.role,
+        speakingStyle: getPersonalityDescription(apiPersona.personality),
+        expertise: getExpertiseFromTags(apiPersona.tags),
+        goal: `${apiPersona.category} astrology guidance aur personalized predictions provide karna.`,
+        initialGreeting: apiPersona.initialGreeting,
+        avatar: getAvatarForCategory(apiPersona.category),
+        rating: parseFloat((apiPersona.usage.averageRating || (4.5 + Math.random() * 0.4)).toFixed(1)), // One decimal point
+        consultations: apiPersona.usage.totalSessions || Math.floor(Math.random() * 2000) + 500,
+        experience: `${Math.floor(Math.random() * 20) + 5} years`,
+        specialty: getSpecialtyForCategory(apiPersona.category),
+        description: getDescriptionForCategory(apiPersona.category, apiPersona.name),
+        reviews: realReviews.length > 0 ? realReviews : generateReviewsForPersona(apiPersona.name, apiPersona.category), // Use real reviews if available, fallback otherwise
+        image: apiPersona.image || null // Placeholder for future image
+      };
     }));
     
     return personas;

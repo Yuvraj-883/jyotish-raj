@@ -1,7 +1,30 @@
-import { Star, Users, Award, ArrowLeft, MessageCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Star, Users, Award, ArrowLeft, MessageCircle, Clock, ThumbsUp } from "lucide-react";
 import { Button } from "./ui/button";
+import { fetchPersonaReviews } from "../services/astrologyPersonas";
 
 export default function PersonaDetail({ persona, onBack, onStartChat }) {
+  const [reviews, setReviews] = useState(persona.reviews || []);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+
+  useEffect(() => {
+    // Fetch fresh reviews when component mounts
+    const loadReviews = async () => {
+      setLoadingReviews(true);
+      try {
+        const freshReviews = await fetchPersonaReviews(persona.id);
+        if (freshReviews.length > 0) {
+          setReviews(freshReviews);
+        }
+      } catch (error) {
+        console.error("Failed to load fresh reviews:", error);
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+
+    loadReviews();
+  }, [persona.id]);
   const renderStars = (rating) => {
     return Array.from({ length: 5 }, (_, index) => (
       <Star
@@ -93,22 +116,77 @@ export default function PersonaDetail({ persona, onBack, onStartChat }) {
 
             {/* Reviews Section */}
             <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-              <h2 className="text-xl font-bold mb-4 text-white">Client Reviews</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">Client Reviews</h2>
+                {loadingReviews && (
+                  <div className="text-sm text-gray-400">Loading latest reviews...</div>
+                )}
+              </div>
               <div className="space-y-4">
-                {persona.reviews.map((review, index) => (
+                {reviews.map((review, index) => (
                   <div key={index} className="bg-slate-700 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
                           {review.name.charAt(0)}
                         </div>
-                        <span className="font-medium text-white">{review.name}</span>
+                        <div>
+                          <span className="font-medium text-white">{review.name}</span>
+                          {review.isVerified && (
+                            <span className="ml-2 text-xs bg-green-600 text-white px-2 py-0.5 rounded-full">
+                              Verified
+                            </span>
+                          )}
+                          {review.isFeatured && (
+                            <span className="ml-2 text-xs bg-yellow-600 text-white px-2 py-0.5 rounded-full">
+                              Featured
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
                         {renderStars(review.rating)}
                       </div>
                     </div>
-                    <p className="text-gray-300 text-sm">{review.comment}</p>
+                    
+                    {review.title && (
+                      <h4 className="font-semibold text-white mb-2">{review.title}</h4>
+                    )}
+                    
+                    <p className="text-gray-300 text-sm mb-2">{review.comment}</p>
+                    
+                    {(review.sessionDuration || review.messagesExchanged || review.helpfulVotes) && (
+                      <div className="flex items-center gap-4 text-xs text-gray-400 mt-2">
+                        {review.sessionDuration && (
+                          <span className="flex items-center gap-1">
+                            <Clock size={12} />
+                            {review.sessionDuration}m session
+                          </span>
+                        )}
+                        {review.messagesExchanged && (
+                          <span className="flex items-center gap-1">
+                            <MessageCircle size={12} />
+                            {review.messagesExchanged} messages
+                          </span>
+                        )}
+                        {review.helpfulVotes > 0 && (
+                          <span className="flex items-center gap-1">
+                            <ThumbsUp size={12} />
+                            {review.helpfulVotes} helpful
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {review.date && (
+                      <div className="text-xs text-gray-500 mt-2">
+                        {new Date(review.date).toLocaleDateString('en-IN', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

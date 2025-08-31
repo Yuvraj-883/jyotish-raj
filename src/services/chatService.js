@@ -1,67 +1,79 @@
 // ../src/services/chatService.js
 
-// Ensure this URL points to your deployed backend or local server
-const API_BASE_URL = "https://astro-backend-xi.vercel.app/api/v1";
+import { getApiUrl, API_CONFIG } from "../config/api";
 
 /**
- * Starts a new chat session.
- * @returns {Promise<{sessionId: string, message: string}>}
+ * A helper function to handle API responses and parse errors correctly.
+ * @param {Response} response - The raw response from the fetch call.
  */
-export const startChatSession = async () => {
+const handleResponse = async (response) => {
+  // Try to parse the body of the response as JSON
+  const data = await response.json();
+  
+  // If the server responded with an error status code (like 400 or 500)
+  if (!response.ok) {
+    // Throw an error using the specific message from the server's JSON response
+    throw new Error(data.message || `API Error: ${response.status}`);
+  }
+  
+  // If the response is OK, return the JSON data
+  return data;
+};
+
+export const fetchPersonas = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/astro/start`);
-    if (!response.ok) throw new Error("Failed to start session");
-    return await response.json();
+    const response = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.PERSONAS));
+    return await handleResponse(response); // Returns array of personas
   } catch (error) {
-    console.error("Error starting chat session:", error);
-    throw error;
+    console.error("Error fetching personas:", error.message);
+    throw error; // Re-throw the error to be caught by the component
   }
 };
 
-/**
- * Submits the user's birth details.
- * @param {string} sessionId
- * @param {object} birthDetails - { name, date, time, location }
- * @returns {Promise<string>}
- */
+export const startChatSession = async (persona = null) => {
+  try {
+    const response = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.ASTRO_START), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ persona: persona || null }),
+    });
+    return await handleResponse(response); // Returns { sessionId, message }
+  } catch (error) {
+    console.error("Error starting chat session:", error.message);
+    throw error; // Re-throw the error to be caught by the component
+  }
+};
+
 export const submitBirthDetails = async (sessionId, birthDetails) => {
-  try { 
-    const response = await fetch(`${API_BASE_URL}/astro/chat`, {
+  try {
+    const response = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.ASTRO_CHAT), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sessionId,
         message: "Here are my birth details.",
-        birthDetails, // This must be a structured object
+        birthDetails,
       }),
     });
-    if (!response.ok) throw new Error("Failed to submit details");
-    const data = await response.json();
+    const data = await handleResponse(response);
     return data.message;
   } catch (error) {
-    console.error("Error submitting birth details:", error);
-    throw error;
+    console.error("Error submitting birth details:", error.message);
+    throw error; // Re-throw the error
   }
 };
 
-/**
- * Sends a regular chat message.
- * @param {string} sessionId
- * @param {string} message
- * @returns {Promise<string>}
- */
 export const fetchChatResponse = async (sessionId, message) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/astro/chat`, {
+    const response = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.ASTRO_CHAT), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, message }), // No birthDetails here
+      body: JSON.stringify({ sessionId, message }),
     });
-    if (!response.ok) throw new Error("Failed to fetch response");
-    const data = await response.json();
+    const data = await handleResponse(response);
     return data.message;
   } catch (error) {
-    console.error("Error fetching chat response:", error);
-    throw error;
+    console.error("Error fetching chat response:", error.message);
+    throw error; // Re-throw the error
   }
 };

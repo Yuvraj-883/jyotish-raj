@@ -61,6 +61,7 @@ export const fetchPersonaReviews = async (personaSlug) => {
  */
 export const fetchPersonas = async () => {
   try {
+    console.log("Fetching personas from API...", `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PERSONAS}`);
     const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PERSONAS}`);
     if (!response.ok) {
       throw new Error(`API Error: ${response.status}`);
